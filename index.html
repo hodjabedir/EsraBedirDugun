@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geri Sayım - 10 Ağustos 2026</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+
+        :root {
+            --bg-start: #667eea; --bg-end: #764ba2;
+            --text: #fff; --box: rgba(255,255,255,0.15);
+            --container: rgba(255,255,255,0.1); --border: rgba(255,255,255,0.2);
+            --accent: #ffd700;
+        }
+
+        [data-theme="light"] {
+            --bg-start: #f6d365; --bg-end: #fda085;
+            --text: #2c2c2c; --box: rgba(255,255,255,0.5);
+            --container: rgba(255,255,255,0.4); --border: rgba(0,0,0,0.1);
+            --accent: #d63384;
+        }
+
+        body {
+            min-height: 100vh; display: flex; justify-content: center; align-items: center;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: var(--text); text-align: center; padding: 20px;
+            transition: background 0.5s, color 0.5s; overflow-x: hidden;
+        }
+
+        .theme-toggle, .sound-toggle {
+            position: fixed; top: 20px; background: var(--box);
+            border: 1px solid var(--border); color: var(--text);
+            font-size: 1.3em; padding: 10px 15px; border-radius: 50%;
+            cursor: pointer; z-index: 10; backdrop-filter: blur(10px);
+            transition: transform 0.3s;
+        }
+        .theme-toggle { right: 20px; }
+        .sound-toggle { left: 20px; }
+        .theme-toggle:hover { transform: rotate(20deg) scale(1.1); }
+        .sound-toggle:hover { transform: scale(1.1); }
+
+        .container {
+            background: var(--container); backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 40px 60px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 1px solid var(--border); position: relative; z-index: 2;
+        }
+
+        h1 { font-size: 2em; margin-bottom: 10px; font-weight: 300; }
+
+        .custom-message {
+            font-size: 1.4em; margin-bottom: 15px; font-weight: 500;
+            color: var(--accent); text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .target-date { font-size: 1.2em; margin-bottom: 30px; opacity: 0.9; }
+
+        .countdown { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+
+        .time-box {
+            background: var(--box); padding: 20px 25px; border-radius: 15px;
+            min-width: 110px; transition: transform 0.3s; border: 1px solid var(--border);
+        }
+        .time-box:hover { transform: translateY(-5px); }
+
+        .time-value {
+            font-size: 3em; font-weight: bold; display: block;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .time-label {
+            font-size: 0.9em; text-transform: uppercase;
+            letter-spacing: 2px; margin-top: 5px; opacity: 0.8;
+        }
+
+        .expired {
+            font-size: 2em; color: var(--accent);
+            margin-top: 20px; animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        #fireworks {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1; display: none;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 30px 20px; }
+            h1 { font-size: 1.5em; }
+            .custom-message { font-size: 1.1em; }
+            .time-value { font-size: 2em; }
+            .time-box { min-width: 80px; padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+<button class="sound-toggle" id="soundToggle" title="Ses">🔇</button>
+<button class="theme-toggle" id="themeToggle" title="Tema">🌙</button>
+<canvas id="fireworks"></canvas>
+
+<div class="container">
+    <h1>⏳ Geri Sayım</h1>
+    <p class="custom-message" id="customMessage">🎉 Özel Gün'e Kaldı!</p>
+    <p class="target-date">🎯 Hedef: 10 Ağustos 2026 - 19:00</p>
+
+    <div class="countdown" id="countdown">
+        <div class="time-box"><span class="time-value" id="days">0</span><div class="time-label">Gün</div></div>
+        <div class="time-box"><span class="time-value" id="hours">0</span><div class="time-label">Saat</div></div>
+        <div class="time-box"><span class="time-value" id="minutes">0</span><div class="time-label">Dakika</div></div>
+        <div class="time-box"><span class="time-value" id="seconds">0</span><div class="time-label">Saniye</div></div>
+    </div>
+    <div id="message"></div>
+</div>
+
+<script>
+    const targetDate = new Date('2026-08-10T19:00:00+03:00').getTime();
+
+    const themeToggle = document.getElementById('themeToggle');
+    let currentTheme = localStorage.getItem('theme') || 'dark';
+    applyTheme(currentTheme);
+
+    themeToggle.addEventListener('click', () => {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(currentTheme);
+        localStorage.setItem('theme', currentTheme);
+    });
+
+    function applyTheme(theme) {
+        if (theme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '☀️';
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            themeToggle.textContent = '🌙';
+        }
+    }
+
+    const soundToggle = document.getElementById('soundToggle');
+    let soundEnabled = false;
+    let audioCtx = null;
+    let lastSecond = -1;
+
+    soundToggle.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        soundToggle.textContent = soundEnabled ? '🔊' : '🔇';
+        if (soundEnabled && !audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    });
+
+    function playTick() {
+        if (!soundEnabled || !audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.value = 800; osc.type = 'sine';
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function playCelebration() {
+        if (!soundEnabled || !audioCtx) return;
+        [523, 659, 784, 1047].forEach((freq, i) => {
+            setTimeout(() => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.frequency.value = freq; osc.type = 'sine';
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.5);
+            }, i * 200);
+        });
+    }
+
+    function updateCountdown() {
+        const now = new Date().getTime();
+        const distance = targetDate - now;
+
+        if (distance < 0) {
+            document.getElementById('countdown').style.display = 'none';
+            document.getElementById('message').innerHTML =
+                '<p class="expired">🎉 Zaman doldu! Kutlu olsun! 🎊</p>';
+            clearInterval(timer);
+            startFireworks();
+            playCelebration();
+            return;
+        }
+
+        const days = Math.floor(distance / (1000*60*60*24));
+        const hours = Math.floor((distance % (1000*60*60*24)) / (1000*60*60));
+        const minutes = Math.floor((distance % (1000*60*60)) / (1000*60));
+        const seconds = Math.floor((distance % (1000*60)) / 1000);
+
+        document.getElementById('days').textContent = days;
+        document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+        document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+        document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+
+        if (seconds !== lastSecond) { lastSecond = seconds; playTick(); }
+    }
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+
+    const canvas = document.getElementById('fireworks');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let fireworksRunning = false;
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function startFireworks() {
+        canvas.style.display = 'block';
+        fireworksRunning = true;
+        animateFireworks();
+        setInterval(createFirework, 800);
+    }
+
+    function createFirework() {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height * 0.5;
+        const colors = ['#ff0043','#14fc56','#1e7fff','#e8f000','#ff00e0','#00e8ff'];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        for (let i = 0; i < 60; i++) {
+            const angle = (Math.PI * 2 * i) / 60;
+            const speed = Math.random() * 5 + 2;
+            particles.push({
+                x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+                alpha: 1, color, size: Math.random()*3+1
+            });
+        }
+    }
+
+    function animateFireworks() {
+        if (!fireworksRunning) return;
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        particles.forEach((p, idx) => {
+            p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.alpha -= 0.01;
+            if (p.alpha <= 0) { particles.splice(idx, 1); return; }
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(animateFireworks);
+    }
+</script>
+</body>
+</html>
